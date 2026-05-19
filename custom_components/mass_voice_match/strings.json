@@ -7,6 +7,7 @@
         "data": {
           "music_assistant_entry": "Music Assistant Instance",
           "default_media_player": "Default Media Player",
+          "fallback_agent": "Fallback Conversation Agent",
           "model": "Embedding Model",
           "threshold": "Matching Threshold"
         }
@@ -26,6 +27,7 @@
         "title": "MASS Voice Match Options",
         "data": {
           "default_media_player": "Default Media Player",
+          "fallback_agent": "Fallback Conversation Agent",
           "model": "Embedding Model",
           "threshold": "Matching Threshold"
         }

@@ -60,15 +60,15 @@ def build_items(lib: dict) -> list:
     # Tracks
     for track in lib.get("tracks", []):
         name = track.get("name", "")
-        # MA 2.0+ uses 'artists', 1.0 used 'artist'
         artist = ""
         if track.get("artists"):
             artist = track["artists"][0].get("name", "")
         elif track.get("artist"):
-             artist = track["artist"]
+            artist = track["artist"]
 
         uri = track.get("uri", "")
-        if not uri: continue
+        if not uri:
+            continue
 
         # Variations
         if artist:
@@ -80,7 +80,8 @@ def build_items(lib: dict) -> list:
     for artist in lib.get("artists", []):
         name = artist.get("name", "")
         uri = artist.get("uri", "")
-        if not uri: continue
+        if not uri:
+            continue
         items.append({"text": name, "name": name, "uri": uri, "type": "artist"})
 
     # Albums
@@ -93,7 +94,8 @@ def build_items(lib: dict) -> list:
             artist = album.get("artist")
 
         uri = album.get("uri", "")
-        if not uri: continue
+        if not uri:
+            continue
 
         if artist:
             items.append({"text": f"{artist} {name}", "name": name, "artist": artist, "uri": uri, "type": "album"})
@@ -104,14 +106,16 @@ def build_items(lib: dict) -> list:
     for playlist in lib.get("playlists", []):
         name = playlist.get("name", "")
         uri = playlist.get("uri", "")
-        if not uri: continue
+        if not uri:
+            continue
         items.append({"text": name, "name": name, "uri": uri, "type": "playlist"})
 
     # Radio
     for radio in lib.get("radio", []):
         name = radio.get("name", "")
         uri = radio.get("uri", "")
-        if not uri: continue
+        if not uri:
+            continue
         items.append({"text": name, "name": name, "uri": uri, "type": "radio"})
 
     _LOGGER.info("Built %d searchable items from library", len(items))

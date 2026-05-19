@@ -9,7 +9,8 @@ from homeassistant.helpers import intent
 from homeassistant.config_entries import ConfigEntry
 
 from .const import (
-    DOMAIN, CONF_MUSIC_ASSISTANT_ENTRY, CONF_DEFAULT_MEDIA_PLAYER, CONF_THRESHOLD
+    DOMAIN, CONF_MUSIC_ASSISTANT_ENTRY, CONF_DEFAULT_MEDIA_PLAYER,
+    CONF_THRESHOLD, CONF_FALLBACK_AGENT, CONF_MODEL
 )
 from .embedding import search
 from .sync import get_ma_domain
@@ -18,8 +19,6 @@ _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> bool:
     """Set up conversation agent from a config entry."""
-    # We don't actually use entities for the abstract agent, but HA platform setup
-    # passes the async_add_entities callback which we must accept in the signature.
     agent = MASSVoiceMatchConversationAgent(hass, entry)
     conversation.async_set_agent(hass, entry, agent)
     return True
@@ -56,25 +55,29 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
         ]
 
         query = text
+        matched_prefix = False
         for pattern in patterns:
             match = re.match(pattern, text, re.IGNORECASE)
             if match:
+                if pattern != patterns[-1]:
+                    matched_prefix = True
                 query = match.group(1).strip()
                 break
 
         try:
             threshold = self.entry.data.get(CONF_THRESHOLD, 0.5)
+            model_name = self.entry.data.get(CONF_MODEL)
             item, score = await self.hass.async_add_executor_job(
-                search, self.hass, query
+                search, self.hass, query, model_name
             )
 
-            if score < threshold:
-                 _LOGGER.debug("Best match '%s' score %s below threshold %s",
-                              item.get("name"), score, threshold)
-                 return conversation.ConversationResult(
-                    response=intent.IntentResponse(language=user_input.language),
-                    conversation_id=user_input.conversation_id,
-                )
+            # If we didn't match a "play" prefix AND the score is low,
+            # we definitely want to fallback.
+            actual_threshold = threshold if matched_prefix else max(threshold, 0.7)
+
+            if score < actual_threshold:
+                 _LOGGER.debug("Match score %s below threshold %s. Falling back.", score, actual_threshold)
+                 return await self._async_fallback(user_input)
 
             _LOGGER.info("Matched '%s' to '%s' (score: %s)", query, item["name"], score)
 
@@ -82,7 +85,6 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
             ma_entry_id = self.entry.data.get(CONF_MUSIC_ASSISTANT_ENTRY)
             player_id = self.entry.data.get(CONF_DEFAULT_MEDIA_PLAYER)
 
-            # MA service call often uses config_entry_id but check if it's the right one
             await self.hass.services.async_call(
                 ma_domain,
                 "play_media",
@@ -104,7 +106,27 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
 
         except Exception as err:
             _LOGGER.error("Error in conversation agent: %s", err)
-            return conversation.ConversationResult(
+            return await self._async_fallback(user_input)
+
+    async def _async_fallback(
+        self, user_input: conversation.ConversationInput
+    ) -> conversation.ConversationResult:
+        """Pass the input to the fallback conversation agent."""
+        fallback_agent_id = self.entry.data.get(CONF_FALLBACK_AGENT)
+
+        if not fallback_agent_id or fallback_agent_id == "homeassistant":
+             _LOGGER.debug("No fallback agent configured or fallback is default.")
+             return conversation.ConversationResult(
                 response=intent.IntentResponse(language=user_input.language),
                 conversation_id=user_input.conversation_id,
             )
+
+        _LOGGER.debug("Forwarding to fallback agent: %s", fallback_agent_id)
+        return await conversation.async_converse(
+            hass=self.hass,
+            text=user_input.text,
+            conversation_id=user_input.conversation_id,
+            context=user_input.context,
+            language=user_input.language,
+            agent_id=fallback_agent_id,
+        )
