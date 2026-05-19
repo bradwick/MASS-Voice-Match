@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="brand/logo.png" alt="MASS Voice Match Logo" width="500">
+</p>
+
 # MASS Voice Match
 
 A Home Assistant integration that provides semantic voice search for your Music Assistant library.
