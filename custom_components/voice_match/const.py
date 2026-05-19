@@ -20,10 +20,12 @@ DEFAULT_MAX_PROFILES = 10
 
 # Service names
 SERVICE_MATCH_VOICE = "match_voice"
+SERVICE_PLAY_MATCH = "play_match"
 SERVICE_ADD_PROFILE = "add_profile"
 SERVICE_REMOVE_PROFILE = "remove_profile"
 SERVICE_LIST_PROFILES = "list_profiles"
-SERVICE_PLAY_MATCH = "play_match"
+SERVICE_REBUILD_INDEX = "rebuild_index"
+SERVICE_LOAD_INDEX = "load_index"
 
 # Music Assistant constants
 MUSIC_ASSISTANT_BASE_URL = "http://localhost:8849"
