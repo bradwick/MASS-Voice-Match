@@ -1,0 +1,41 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "MASS Voice Match",
+        "description": "Scan your Music Assistant library and create a searchable vector index.",
+        "data": {
+          "music_assistant_entry": "Music Assistant Instance",
+          "default_media_player": "Default Media Player",
+          "model": "Embedding Model",
+          "threshold": "Matching Threshold"
+        }
+      }
+    },
+    "error": {
+      "no_ma": "No Music Assistant instance found. Please install it first.",
+      "index_error": "Error building the search index."
+    },
+    "abort": {
+      "already_configured": "MASS Voice Match is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "MASS Voice Match Options",
+        "data": {
+          "default_media_player": "Default Media Player",
+          "model": "Embedding Model",
+          "threshold": "Matching Threshold"
+        }
+      }
+    }
+  },
+  "services": {
+    "rebuild_index": {
+      "name": "Rebuild Index",
+      "description": "Re-scans Music Assistant and updates the search index."
+    }
+  }
+}
