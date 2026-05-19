@@ -10,6 +10,7 @@ CONF_MODEL = "model"
 CONF_SENSITIVITY = "sensitivity"
 CONF_PROCESSING_MODE = "processing_mode"
 CONF_MAX_PROFILES = "max_profiles"
+CONF_MUSIC_ASSISTANT = "music_assistant"
 
 # Default values
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -22,3 +23,7 @@ SERVICE_MATCH_VOICE = "match_voice"
 SERVICE_ADD_PROFILE = "add_profile"
 SERVICE_REMOVE_PROFILE = "remove_profile"
 SERVICE_LIST_PROFILES = "list_profiles"
+SERVICE_PLAY_MATCH = "play_match"
+
+# Music Assistant constants
+MUSIC_ASSISTANT_BASE_URL = "http://localhost:8849"
