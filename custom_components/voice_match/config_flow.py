@@ -79,7 +79,7 @@ class VoiceMatchFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def _build_cache(self, music_assistant_entity):
         """Build the voice match cache from Music Assistant library."""
         try:
-            from .sync import fetch_library, build_items
+            from .sync import fetch_library_from_hass, build_items
             from .embedding import build_index
             
             if not music_assistant_entity:
@@ -88,14 +88,8 @@ class VoiceMatchFlow(config_entries.ConfigFlow, domain=DOMAIN):
             
             _LOGGER.info("Starting Voice Match cache build from %s", music_assistant_entity)
             
-            # Get the Music Assistant base URL from the entity
-            music_player = self.hass.states.get(music_assistant_entity)
-            if not music_player:
-                _LOGGER.error("Music Assistant entity not found: %s", music_assistant_entity)
-                return
-            
-            # Fetch library from Music Assistant
-            lib = await fetch_library(self.hass, "http://localhost:8849")  # Default MA port
+            # Fetch library from Music Assistant integration
+            lib = await fetch_library_from_hass(self.hass, music_assistant_entity)
             items = build_items(lib)
             
             # Build the vector index
