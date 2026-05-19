@@ -72,7 +72,9 @@ class OptionsFlowMASSVoiceMatch(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        # Note: In newer HA versions, config_entry is a property of OptionsFlow
+        # and should not be set manually in __init__ if it conflicts with the property.
+        pass
 
     async def async_step_init(self, user_input=None) -> FlowResult:
         """Manage the options."""
