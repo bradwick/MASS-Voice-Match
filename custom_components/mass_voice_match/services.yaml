@@ -1,0 +1,2 @@
+rebuild_index:
+  description: "Re-scans Music Assistant and updates the search index."
