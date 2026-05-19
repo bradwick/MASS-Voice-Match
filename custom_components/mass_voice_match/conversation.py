@@ -16,8 +16,10 @@ from .sync import get_ma_domain
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities) -> bool:
     """Set up conversation agent from a config entry."""
+    # We don't actually use entities for the abstract agent, but HA platform setup
+    # passes the async_add_entities callback which we must accept in the signature.
     agent = MASSVoiceMatchConversationAgent(hass, entry)
     conversation.async_set_agent(hass, entry, agent)
     return True
