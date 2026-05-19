@@ -12,6 +12,7 @@ from .const import (
     DOMAIN, CONF_MUSIC_ASSISTANT_ENTRY, CONF_DEFAULT_MEDIA_PLAYER, CONF_THRESHOLD
 )
 from .embedding import search
+from .sync import get_ma_domain
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,11 +47,10 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
         text = user_input.text
         _LOGGER.debug("Processing text: %s", text)
 
-        # Improved prefix stripping
-        # Handles "Play...", "Can you play...", "I want to listen to...", etc.
+        # Patterns to strip
         patterns = [
             r"^(?:could you |can you |please |i want to )?(?:play|listen to|start|put on) (.+)$",
-            r"^(.+)$" # Fallback to whole string
+            r"^(.+)$"
         ]
 
         query = text
@@ -68,7 +68,7 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
 
             if score < threshold:
                  _LOGGER.debug("Best match '%s' score %s below threshold %s",
-                              item["name"], score, threshold)
+                              item.get("name"), score, threshold)
                  return conversation.ConversationResult(
                     response=intent.IntentResponse(language=user_input.language),
                     conversation_id=user_input.conversation_id,
@@ -76,12 +76,13 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
 
             _LOGGER.info("Matched '%s' to '%s' (score: %s)", query, item["name"], score)
 
-            # Play the matched item
+            ma_domain = get_ma_domain(self.hass)
             ma_entry_id = self.entry.data.get(CONF_MUSIC_ASSISTANT_ENTRY)
             player_id = self.entry.data.get(CONF_DEFAULT_MEDIA_PLAYER)
 
+            # MA service call often uses config_entry_id but check if it's the right one
             await self.hass.services.async_call(
-                "music_assistant",
+                ma_domain,
                 "play_media",
                 {
                     "config_entry_id": ma_entry_id,

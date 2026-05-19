@@ -26,9 +26,10 @@ class MASSVoiceMatchFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data=user_input,
             )
 
-        ma_entries = [
-            entry for entry in self.hass.config_entries.async_entries("music_assistant")
-        ]
+        # Detect Music Assistant (try both mass and music_assistant domains)
+        ma_entries = []
+        for domain in ["mass", "music_assistant"]:
+            ma_entries.extend(self.hass.config_entries.async_entries(domain))
 
         if not ma_entries:
             return self.async_abort(reason="no_ma")

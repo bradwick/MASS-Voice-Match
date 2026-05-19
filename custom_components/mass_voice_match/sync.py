@@ -4,10 +4,21 @@ from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
 
+def get_ma_domain(hass: HomeAssistant) -> str:
+    """Detect whether to use 'mass' or 'music_assistant' domain."""
+    if hass.services.has_service("mass", "get_library"):
+        return "mass"
+    if hass.services.has_service("music_assistant", "get_library"):
+        return "music_assistant"
+    return "mass" # Default fallback
+
 async def fetch_library_from_hass(hass: HomeAssistant, config_entry_id: str) -> dict:
     """
     Fetch library from Music Assistant integration via the hass service.
     """
+    domain = get_ma_domain(hass)
+    _LOGGER.debug("Using domain '%s' to fetch Music Assistant library", domain)
+
     library = {
         "tracks": [],
         "artists": [],
@@ -20,7 +31,7 @@ async def fetch_library_from_hass(hass: HomeAssistant, config_entry_id: str) -> 
         try:
             _LOGGER.debug("Fetching %s from Music Assistant", media_type)
             response = await hass.services.async_call(
-                "music_assistant",
+                domain,
                 "get_library",
                 {
                     "config_entry_id": config_entry_id,
@@ -49,9 +60,14 @@ def build_items(lib: dict) -> list:
     # Tracks
     for track in lib.get("tracks", []):
         name = track.get("name", "")
-        artist = track.get("artists", [{}])[0].get("name", "") if track.get("artists") else ""
-        uri = track.get("uri", "")
+        # MA 2.0+ uses 'artists', 1.0 used 'artist'
+        artist = ""
+        if track.get("artists"):
+            artist = track["artists"][0].get("name", "")
+        elif track.get("artist"):
+             artist = track["artist"]
 
+        uri = track.get("uri", "")
         if not uri: continue
 
         # Variations
@@ -70,7 +86,12 @@ def build_items(lib: dict) -> list:
     # Albums
     for album in lib.get("albums", []):
         name = album.get("name", "")
-        artist = album.get("artists", [{}])[0].get("name", "") if album.get("artists") else ""
+        artist = ""
+        if album.get("artists"):
+            artist = album["artists"][0].get("name", "")
+        elif album.get("artist"):
+            artist = album.get("artist")
+
         uri = album.get("uri", "")
         if not uri: continue
 
