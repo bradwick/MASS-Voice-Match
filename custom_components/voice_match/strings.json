@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configure Voice Match",
+        "description": "Set up your Voice Match integration with custom settings",
+        "data": {
+          "model": "Embedding Model",
+          "sensitivity": "Matching Sensitivity",
+          "processing_mode": "Processing Mode",
+          "max_profiles": "Maximum Speaker Profiles"
+        },
+        "data_description": {
+          "model": "Sentence Transformer model for voice embeddings. Smaller models are faster, larger models are more accurate.",
+          "sensitivity": "Higher values (0.8-1.0) require closer voice matches. Lower values (0.5-0.7) are more permissive.",
+          "processing_mode": "Local processes everything on your Home Assistant device. Hybrid requires external services.",
+          "max_profiles": "Limit the number of speaker profiles that can be stored (1-100)"
+        }
+      }
+    },
+    "error": {
+      "invalid_model": "Invalid model name provided",
+      "invalid_sensitivity": "Sensitivity must be between 0.0 and 1.0"
+    },
+    "abort": {
+      "already_configured": "Voice Match is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Voice Match Options",
+        "description": "Update Voice Match integration settings",
+        "data": {
+          "sensitivity": "Matching Sensitivity",
+          "processing_mode": "Processing Mode",
+          "max_profiles": "Maximum Speaker Profiles"
+        },
+        "data_description": {
+          "sensitivity": "Higher values require closer voice matches. Lower values are more permissive.",
+          "processing_mode": "Local or Hybrid processing mode",
+          "max_profiles": "Maximum number of speaker profiles to store"
+        }
+      }
+    }
+  }
+}
