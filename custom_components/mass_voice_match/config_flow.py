@@ -7,7 +7,7 @@ import logging
 
 from .const import (
     DOMAIN, CONF_MODEL, CONF_MUSIC_ASSISTANT_ENTRY, CONF_DEFAULT_MEDIA_PLAYER,
-    CONF_THRESHOLD, DEFAULT_MODEL, DEFAULT_THRESHOLD
+    CONF_THRESHOLD, CONF_FALLBACK_AGENT, DEFAULT_MODEL, DEFAULT_THRESHOLD
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class MASSVoiceMatchFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 data=user_input,
             )
 
-        # Detect Music Assistant (try both mass and music_assistant domains)
+        # Detect Music Assistant
         ma_entries = []
         for domain in ["mass", "music_assistant"]:
             ma_entries.extend(self.hass.config_entries.async_entries(domain))
@@ -49,6 +49,7 @@ class MASSVoiceMatchFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required(CONF_DEFAULT_MEDIA_PLAYER): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="media_player")
             ),
+            vol.Optional(CONF_FALLBACK_AGENT): selector.ConversationAgentSelector(),
             vol.Required(CONF_MODEL, default=DEFAULT_MODEL): str,
             vol.Required(CONF_THRESHOLD, default=DEFAULT_THRESHOLD): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0.0, max=1.0, step=0.01)
@@ -70,12 +71,6 @@ class MASSVoiceMatchFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class OptionsFlowMASSVoiceMatch(config_entries.OptionsFlow):
     """Handle options updates."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        # Note: In newer HA versions, config_entry is a property of OptionsFlow
-        # and should not be set manually in __init__ if it conflicts with the property.
-        pass
-
     async def async_step_init(self, user_input=None) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
@@ -88,6 +83,10 @@ class OptionsFlowMASSVoiceMatch(config_entries.OptionsFlow):
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="media_player")
             ),
+            vol.Optional(
+                CONF_FALLBACK_AGENT,
+                default=self.config_entry.data.get(CONF_FALLBACK_AGENT)
+            ): selector.ConversationAgentSelector(),
             vol.Required(
                 CONF_THRESHOLD,
                 default=self.config_entry.data.get(CONF_THRESHOLD, DEFAULT_THRESHOLD)

@@ -7,6 +7,7 @@ CONF_MUSIC_ASSISTANT_ENTRY = "music_assistant_entry"
 CONF_DEFAULT_MEDIA_PLAYER = "default_media_player"
 CONF_MODEL = "model"
 CONF_THRESHOLD = "threshold"
+CONF_FALLBACK_AGENT = "fallback_agent"
 
 # Default values
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
