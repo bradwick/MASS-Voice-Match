@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "documentation": "https://github.com/bradwick/MASS-Voice-Match",
   "requirements": [
-    "sentence-transformers==3.0.1",
-    "faiss-cpu==1.8.0",
+    "sentence-transformers",
+    "faiss-cpu",
     "numpy"
   ],
   "codeowners": [

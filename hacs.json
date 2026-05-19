@@ -1,8 +1,8 @@
 {
-  "name": "Voice Match",
+  "name": "MASS Voice Match",
   "content_in_root": false,
   "domains": [
-    "voice_match"
+    "mass_voice_match"
   ],
-  "homeassistant": "2024.1.0"
+  "homeassistant": "2024.12.0"
 }
