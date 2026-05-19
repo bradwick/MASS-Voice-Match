@@ -1,7 +1,7 @@
 {
   "domain": "mass_voice_match",
   "name": "MASS Voice Match",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "documentation": "https://github.com/bradwick/MASS-Voice-Match",
   "requirements": [
     "sentence-transformers",
