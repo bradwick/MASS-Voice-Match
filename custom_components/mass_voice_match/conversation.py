@@ -71,8 +71,6 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
                 search, self.hass, query, model_name
             )
 
-            # If we didn't match a "play" prefix AND the score is low,
-            # we definitely want to fallback.
             actual_threshold = threshold if matched_prefix else max(threshold, 0.7)
 
             if score < actual_threshold:
@@ -82,18 +80,20 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
             _LOGGER.info("Matched '%s' to '%s' (score: %s)", query, item["name"], score)
 
             ma_domain = get_ma_domain(self.hass)
-            ma_entry_id = self.entry.data.get(CONF_MUSIC_ASSISTANT_ENTRY)
             player_id = self.entry.data.get(CONF_DEFAULT_MEDIA_PLAYER)
 
+            _LOGGER.debug("Calling %s.play_media on %s with media_id: %s",
+                         ma_domain, player_id, item["uri"])
+
+            # Use standard media_player.play_media service call parameters
             await self.hass.services.async_call(
-                ma_domain,
+                "media_player",
                 "play_media",
                 {
-                    "config_entry_id": ma_entry_id,
-                    "media_id": item["uri"],
-                    "media_type": item["type"],
+                    "entity_id": player_id,
+                    "media_content_id": item["uri"],
+                    "media_content_type": item["type"],
                 },
-                target={"entity_id": player_id},
                 blocking=True,
             )
 
@@ -105,7 +105,7 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
             )
 
         except Exception as err:
-            _LOGGER.error("Error in conversation agent: %s", err)
+            _LOGGER.error("Error in conversation agent: %s", err, exc_info=True)
             return await self._async_fallback(user_input)
 
     async def _async_fallback(
