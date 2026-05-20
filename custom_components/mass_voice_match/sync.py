@@ -77,6 +77,9 @@ def build_items(lib: dict) -> list:
         if artist:
             items.append({"text": f"{artist} {name}", "name": name, "artist": artist, "uri": uri, "type": "track"})
             items.append({"text": f"{name} by {artist}", "name": name, "artist": artist, "uri": uri, "type": "track"})
+            items.append({"text": f"track {name} by {artist}", "name": name, "artist": artist, "uri": uri, "type": "track"})
+
+        items.append({"text": f"track {name}", "name": name, "artist": artist, "uri": uri, "type": "track"})
         items.append({"text": name, "name": name, "artist": artist, "uri": uri, "type": "track"})
 
     # Artists
@@ -85,6 +88,7 @@ def build_items(lib: dict) -> list:
         uri = artist_item.get("uri", "")
         if not uri:
             continue
+        items.append({"text": f"artist {name}", "name": name, "uri": uri, "type": "artist"})
         items.append({"text": name, "name": name, "uri": uri, "type": "artist"})
 
     # Albums
@@ -103,6 +107,9 @@ def build_items(lib: dict) -> list:
         if artist:
             items.append({"text": f"{artist} {name}", "name": name, "artist": artist, "uri": uri, "type": "album"})
             items.append({"text": f"{name} by {artist}", "name": name, "artist": artist, "uri": uri, "type": "album"})
+            items.append({"text": f"album {name} by {artist}", "name": name, "artist": artist, "uri": uri, "type": "album"})
+
+        items.append({"text": f"album {name}", "name": name, "artist": artist, "uri": uri, "type": "album"})
         items.append({"text": name, "name": name, "artist": artist, "uri": uri, "type": "album"})
 
     # Playlists
@@ -111,6 +118,7 @@ def build_items(lib: dict) -> list:
         uri = playlist.get("uri", "")
         if not uri:
             continue
+        items.append({"text": f"playlist {name}", "name": name, "uri": uri, "type": "playlist"})
         items.append({"text": name, "name": name, "uri": uri, "type": "playlist"})
 
     # Radio
@@ -119,6 +127,8 @@ def build_items(lib: dict) -> list:
         uri = radio.get("uri", "")
         if not uri:
             continue
+        items.append({"text": f"radio {name}", "name": name, "uri": uri, "type": "radio"})
+        items.append({"text": f"station {name}", "name": name, "uri": uri, "type": "radio"})
         items.append({"text": name, "name": name, "uri": uri, "type": "radio"})
 
     _LOGGER.info("Built %d searchable items from library", len(items))
