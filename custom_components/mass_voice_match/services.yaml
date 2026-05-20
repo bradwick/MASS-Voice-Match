@@ -1,2 +1,10 @@
 rebuild_index:
   description: "Re-scans Music Assistant and updates the search index."
+
+search_media:
+  description: "Search for a track, artist, album, playlist, or radio station in the index."
+  fields:
+    query:
+      description: "The search query (e.g., 'Happy Birthday' or 'Queen')."
+      example: "Happy Birthday"
+      required: true
