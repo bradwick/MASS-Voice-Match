@@ -15,6 +15,7 @@ DEFAULT_THRESHOLD = 0.5
 
 # Service names
 SERVICE_REBUILD_INDEX = "rebuild_index"
+SERVICE_SEARCH_MEDIA = "search_media"
 
 # Storage
 STORAGE_VERSION = 1

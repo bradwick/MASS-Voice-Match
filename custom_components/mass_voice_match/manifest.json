@@ -1,7 +1,7 @@
 {
   "domain": "mass_voice_match",
   "name": "MASS Voice Match",
-  "version": "1.2.3",
+  "version": "1.3.1",
   "documentation": "https://github.com/bradwick/MASS-Voice-Match",
   "requirements": [
     "rapidfuzz",

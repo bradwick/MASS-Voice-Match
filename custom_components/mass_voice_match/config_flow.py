@@ -65,11 +65,15 @@ class MASSVoiceMatchFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for the configuration entry."""
-        return OptionsFlowMASSVoiceMatch()
+        return OptionsFlowMASSVoiceMatch(config_entry)
 
 
 class OptionsFlowMASSVoiceMatch(config_entries.OptionsFlow):
     """Handle options updates."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None) -> FlowResult:
         """Manage the options."""
@@ -79,23 +83,27 @@ class OptionsFlowMASSVoiceMatch(config_entries.OptionsFlow):
         options_schema = vol.Schema({
             vol.Required(
                 CONF_DEFAULT_MEDIA_PLAYER,
-                default=self.config_entry.data.get(CONF_DEFAULT_MEDIA_PLAYER)
+                default=self.config_entry.options.get(CONF_DEFAULT_MEDIA_PLAYER,
+                    self.config_entry.data.get(CONF_DEFAULT_MEDIA_PLAYER))
             ): selector.EntitySelector(
                 selector.EntitySelectorConfig(domain="media_player")
             ),
             vol.Optional(
                 CONF_FALLBACK_AGENT,
-                default=self.config_entry.data.get(CONF_FALLBACK_AGENT)
+                default=self.config_entry.options.get(CONF_FALLBACK_AGENT,
+                    self.config_entry.data.get(CONF_FALLBACK_AGENT))
             ): selector.ConversationAgentSelector(),
             vol.Required(
                 CONF_THRESHOLD,
-                default=self.config_entry.data.get(CONF_THRESHOLD, DEFAULT_THRESHOLD)
+                default=self.config_entry.options.get(CONF_THRESHOLD,
+                    self.config_entry.data.get(CONF_THRESHOLD, DEFAULT_THRESHOLD))
             ): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0.0, max=1.0, step=0.01)
             ),
             vol.Required(
                 CONF_MODEL,
-                default=self.config_entry.data.get(CONF_MODEL, DEFAULT_MODEL)
+                default=self.config_entry.options.get(CONF_MODEL,
+                    self.config_entry.data.get(CONF_MODEL, DEFAULT_MODEL))
             ): str,
         })
 

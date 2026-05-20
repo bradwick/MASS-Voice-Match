@@ -38,6 +38,16 @@
     "rebuild_index": {
       "name": "Rebuild Index",
       "description": "Re-scans Music Assistant and updates the search index."
+    },
+    "search_media": {
+      "name": "Search Media",
+      "description": "Search for media in the library index and return the best match.",
+      "fields": {
+        "query": {
+          "name": "Query",
+          "description": "Search term."
+        }
+      }
     }
   }
 }

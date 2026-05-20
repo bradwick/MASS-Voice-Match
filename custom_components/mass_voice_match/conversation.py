@@ -65,8 +65,12 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
                 break
 
         try:
-            threshold = self.entry.data.get(CONF_THRESHOLD, 0.5)
-            model_name = self.entry.data.get(CONF_MODEL)
+            # Use current options if available, otherwise data
+            threshold = self.entry.options.get(CONF_THRESHOLD,
+                                             self.entry.data.get(CONF_THRESHOLD, 0.5))
+            model_name = self.entry.options.get(CONF_MODEL,
+                                              self.entry.data.get(CONF_MODEL))
+
             item, score = await self.hass.async_add_executor_job(
                 search, self.hass, query, model_name
             )
@@ -80,12 +84,10 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
             _LOGGER.info("Matched '%s' to '%s' (score: %s)", query, item["name"], score)
 
             ma_domain = get_ma_domain(self.hass)
-            player_id = self.entry.data.get(CONF_DEFAULT_MEDIA_PLAYER)
+            ma_entry_id = self.entry.data.get(CONF_MUSIC_ASSISTANT_ENTRY)
+            player_id = self.entry.options.get(CONF_DEFAULT_MEDIA_PLAYER,
+                                             self.entry.data.get(CONF_DEFAULT_MEDIA_PLAYER))
 
-            _LOGGER.debug("Calling %s.play_media on %s with media_id: %s",
-                         ma_domain, player_id, item["uri"])
-
-            # Use standard media_player.play_media service call parameters
             await self.hass.services.async_call(
                 "media_player",
                 "play_media",
@@ -112,10 +114,11 @@ class MASSVoiceMatchConversationAgent(conversation.AbstractConversationAgent):
         self, user_input: conversation.ConversationInput
     ) -> conversation.ConversationResult:
         """Pass the input to the fallback conversation agent."""
-        fallback_agent_id = self.entry.data.get(CONF_FALLBACK_AGENT)
+        fallback_agent_id = self.entry.options.get(CONF_FALLBACK_AGENT,
+                                                 self.entry.data.get(CONF_FALLBACK_AGENT))
 
-        if not fallback_agent_id or fallback_agent_id == "homeassistant":
-             _LOGGER.debug("No fallback agent configured or fallback is default.")
+        if not fallback_agent_id:
+             _LOGGER.debug("No fallback agent configured.")
              return conversation.ConversationResult(
                 response=intent.IntentResponse(language=user_input.language),
                 conversation_id=user_input.conversation_id,
