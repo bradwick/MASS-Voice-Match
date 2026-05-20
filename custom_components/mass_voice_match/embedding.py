@@ -132,6 +132,13 @@ def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
 
     query_lower = query.lower().strip()
 
+    # Early exact match check
+    for item in items:
+        if query_lower == item.get("text", "").lower().strip() or \
+           query_lower == item.get("name", "").lower().strip():
+            _LOGGER.debug("Found early exact match: %s", item.get("text"))
+            return item, 1.0
+
     # Try Vector Search first
     if index and model:
         try:
@@ -159,10 +166,24 @@ def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
                     best_idx = idx
                     best_score = float(scores[0][i])
 
-            _LOGGER.debug("Vector match query '%s': found '%s' with score %.3f",
-                         query, items[best_idx].get("name", ""), best_score)
+            # Sanity check: verify vector match with a fuzzy score to avoid false positives
+            if best_idx >= 0:
+                best_item = items[best_idx]
+                fuzzy_score = fuzz.QRatio(
+                    query_lower,
+                    best_item.get("text", "").lower().strip()
+                ) / 100.0
 
-            return items[best_idx], best_score
+                # If fuzzy score is very low, it's likely a false positive from the vector model
+                if fuzzy_score < 0.35:
+                    _LOGGER.debug("Vector match '%s' failed fuzzy sanity check (score %.3f)",
+                                 best_item.get("text"), fuzzy_score)
+                    # We continue to fuzzy fallback instead of returning this
+                else:
+                    _LOGGER.debug("Vector match query '%s': found '%s' with score %.3f (fuzzy sanity: %.3f)",
+                                 query, best_item.get("name", ""), best_score, fuzzy_score)
+                    return best_item, best_score
+
         except Exception as err:
             _LOGGER.warning("Vector search failed: %s. Falling back to fuzzy.", err)
 
@@ -170,14 +191,16 @@ def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
     _LOGGER.debug("Using fuzzy matching for query: %s", query)
 
     texts = [item.get("text", "") for item in items]
-    results = process.extract(query, texts, scorer=fuzz.WRatio, limit=10)
+    # Using QRatio for stricter matching to avoid false positives
+    results = process.extract(
+        query,
+        texts,
+        scorer=fuzz.QRatio,
+        limit=10,
+        processor=lambda x: x.lower().strip()
+    )
 
     if results:
-        # Check for exact matches
-        for matched_text, score, idx in results:
-             if query_lower == matched_text.lower().strip():
-                 return items[idx], 1.0
-
         # Take the best fuzzy match
         matched_text, score, idx = results[0]
         normalized_score = score / 100.0
