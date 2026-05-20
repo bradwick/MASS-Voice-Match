@@ -65,7 +65,7 @@ class MASSVoiceMatchFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for the configuration entry."""
-        return OptionsFlowMASSVoiceMatch(config_entry)
+        return OptionsFlowMASSVoiceMatch()
 
 
 class OptionsFlowMASSVoiceMatch(config_entries.OptionsFlow):
