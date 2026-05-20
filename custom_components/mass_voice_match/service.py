@@ -56,12 +56,15 @@ async def async_setup_services(hass: HomeAssistant, entry) -> None:
         model_name = entry.data.get(CONF_MODEL)
 
         if not query:
-            return {"items": []}
+            return {"item": None}
 
         try:
             item, score = await hass.async_add_executor_job(
                 search, hass, query, model_name
             )
+
+            if not item:
+                return {"item": None, "score": 0.0}
 
             return {
                 "name": item.get("name"),
