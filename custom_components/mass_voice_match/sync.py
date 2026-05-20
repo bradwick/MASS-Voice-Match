@@ -19,15 +19,18 @@ async def fetch_library_from_hass(hass: HomeAssistant, config_entry_id: str) -> 
     domain = get_ma_domain(hass)
     _LOGGER.debug("Using domain '%s' to fetch Music Assistant library", domain)
 
+    # Music Assistant service uses singular media types
+    media_types = ["track", "artist", "album", "playlist", "radio"]
+
     library = {
-        "tracks": [],
-        "artists": [],
-        "albums": [],
-        "playlists": [],
+        "track": [],
+        "artist": [],
+        "album": [],
+        "playlist": [],
         "radio": []
     }
 
-    for media_type in library.keys():
+    for media_type in media_types:
         try:
             _LOGGER.debug("Fetching %s from Music Assistant", media_type)
             response = await hass.services.async_call(
@@ -58,7 +61,7 @@ def build_items(lib: dict) -> list:
     items = []
 
     # Tracks
-    for track in lib.get("tracks", []):
+    for track in lib.get("track", []):
         name = track.get("name", "")
         artist = ""
         if track.get("artists"):
@@ -77,15 +80,15 @@ def build_items(lib: dict) -> list:
         items.append({"text": name, "name": name, "artist": artist, "uri": uri, "type": "track"})
 
     # Artists
-    for artist in lib.get("artists", []):
-        name = artist.get("name", "")
-        uri = artist.get("uri", "")
+    for artist_item in lib.get("artist", []):
+        name = artist_item.get("name", "")
+        uri = artist_item.get("uri", "")
         if not uri:
             continue
         items.append({"text": name, "name": name, "uri": uri, "type": "artist"})
 
     # Albums
-    for album in lib.get("albums", []):
+    for album in lib.get("album", []):
         name = album.get("name", "")
         artist = ""
         if album.get("artists"):
@@ -103,7 +106,7 @@ def build_items(lib: dict) -> list:
         items.append({"text": name, "name": name, "artist": artist, "uri": uri, "type": "album"})
 
     # Playlists
-    for playlist in lib.get("playlists", []):
+    for playlist in lib.get("playlist", []):
         name = playlist.get("name", "")
         uri = playlist.get("uri", "")
         if not uri:
