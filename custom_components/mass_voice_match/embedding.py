@@ -130,21 +130,39 @@ def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
     if not query:
         raise ValueError("Query cannot be empty")
 
+    query_lower = query.lower().strip()
+
     # Try Vector Search first
     if index and model:
         try:
             query_embedding = model.encode([query], normalize_embeddings=True)
             query_embedding = np.array(query_embedding).astype("float32")
 
-            scores, indices = index.search(query_embedding, 1)
+            scores, indices = index.search(query_embedding, 10)
 
-            item_idx = int(indices[0][0])
-            score = float(scores[0][0])
+            best_idx = -1
+            best_score = -1.0
+
+            # Check for exact matches in the results first
+            for i in range(len(indices[0])):
+                idx = int(indices[0][i])
+                if idx < 0: continue
+
+                item_text = items[idx].get("text", "").lower().strip()
+                item_name = items[idx].get("name", "").lower().strip()
+
+                if query_lower == item_text or query_lower == item_name:
+                    _LOGGER.debug("Found exact match in vector results: %s", items[idx].get("text"))
+                    return items[idx], 1.0
+
+                if i == 0:
+                    best_idx = idx
+                    best_score = float(scores[0][i])
 
             _LOGGER.debug("Vector match query '%s': found '%s' with score %.3f",
-                         query, items[item_idx].get("name", ""), score)
+                         query, items[best_idx].get("name", ""), best_score)
 
-            return items[item_idx], score
+            return items[best_idx], best_score
         except Exception as err:
             _LOGGER.warning("Vector search failed: %s. Falling back to fuzzy.", err)
 
@@ -152,14 +170,19 @@ def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
     _LOGGER.debug("Using fuzzy matching for query: %s", query)
 
     texts = [item.get("text", "") for item in items]
-    result = process.extractOne(query, texts, scorer=fuzz.WRatio)
+    results = process.extract(query, texts, scorer=fuzz.WRatio, limit=10)
 
-    if result:
-        matched_text, score, idx = result
-        # Normalize rapidfuzz score (0-100) to match vector search (0-1 approx)
+    if results:
+        # Check for exact matches
+        for matched_text, score, idx in results:
+             if query_lower == matched_text.lower().strip():
+                 return items[idx], 1.0
+
+        # Take the best fuzzy match
+        matched_text, score, idx = results[0]
         normalized_score = score / 100.0
         _LOGGER.debug("Fuzzy match query '%s': found '%s' with score %.3f",
                      query, items[idx].get("name", ""), normalized_score)
         return items[idx], normalized_score
 
-    return items[0], 0.0
+    return None, 0.0
