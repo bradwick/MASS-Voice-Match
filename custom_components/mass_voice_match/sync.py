@@ -33,20 +33,37 @@ async def fetch_library_from_hass(hass: HomeAssistant, config_entry_id: str) -> 
     for media_type in media_types:
         try:
             _LOGGER.debug("Fetching %s from Music Assistant", media_type)
-            response = await hass.services.async_call(
-                domain,
-                "get_library",
-                {
-                    "config_entry_id": config_entry_id,
-                    "media_type": media_type
-                },
-                blocking=True,
-                return_response=True,
-            )
+            all_items = []
+            limit = 500
+            offset = 0
 
-            if response and "items" in response:
-                library[media_type] = response["items"]
-                _LOGGER.debug("Retrieved %d %s from Music Assistant", len(response["items"]), media_type)
+            while True:
+                response = await hass.services.async_call(
+                    domain,
+                    "get_library",
+                    {
+                        "config_entry_id": config_entry_id,
+                        "media_type": media_type,
+                        "limit": limit,
+                        "offset": offset
+                    },
+                    blocking=True,
+                    return_response=True,
+                )
+
+                if response and "items" in response:
+                    items = response["items"]
+                    all_items.extend(items)
+                    _LOGGER.debug("Retrieved %d %s from Music Assistant (offset %d)", len(items), media_type, offset)
+
+                    if len(items) < limit:
+                        break
+                    offset += limit
+                else:
+                    break
+
+            library[media_type] = all_items
+            _LOGGER.info("Retrieved total %d %s from Music Assistant", len(all_items), media_type)
 
         except Exception as err:
             _LOGGER.error("Error fetching %s from Music Assistant: %s", media_type, err)

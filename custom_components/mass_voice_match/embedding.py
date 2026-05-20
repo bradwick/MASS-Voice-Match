@@ -169,13 +169,14 @@ def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
             # Sanity check: verify vector match with a fuzzy score to avoid false positives
             if best_idx >= 0:
                 best_item = items[best_idx]
-                fuzzy_score = fuzz.QRatio(
+                fuzzy_score = fuzz.token_set_ratio(
                     query_lower,
                     best_item.get("text", "").lower().strip()
                 ) / 100.0
 
-                # If fuzzy score is very low, it's likely a false positive from the vector model
-                if fuzzy_score < 0.35:
+                # If fuzzy score is low, it's likely a false positive from the vector model
+                # token_set_ratio is more lenient, so we use a higher threshold (0.6)
+                if fuzzy_score < 0.6:
                     _LOGGER.debug("Vector match '%s' failed fuzzy sanity check (score %.3f)",
                                  best_item.get("text"), fuzzy_score)
                     # We continue to fuzzy fallback instead of returning this
@@ -191,21 +192,36 @@ def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
     _LOGGER.debug("Using fuzzy matching for query: %s", query)
 
     texts = [item.get("text", "") for item in items]
-    # Using QRatio for stricter matching to avoid false positives
+    # Using a hybrid approach for fuzzy fallback:
+    # token_set_ratio is good for partial matches, but can give high scores to short common words.
+    # We combine it with ratio to ensure some overall similarity.
+    best_item = None
+    best_fuzzy_score = -1.0
+
+    # We use a smaller limit for manual scoring
     results = process.extract(
         query,
         texts,
-        scorer=fuzz.QRatio,
-        limit=10,
+        scorer=fuzz.token_set_ratio,
+        limit=20,
         processor=lambda x: x.lower().strip()
     )
 
     if results:
-        # Take the best fuzzy match
-        matched_text, score, idx = results[0]
-        normalized_score = score / 100.0
-        _LOGGER.debug("Fuzzy match query '%s': found '%s' with score %.3f",
-                     query, items[idx].get("name", ""), normalized_score)
-        return items[idx], normalized_score
+        for matched_text, ts_score, idx in results:
+            ts_score /= 100.0
+            r_score = fuzz.ratio(query_lower, matched_text.lower().strip()) / 100.0
+
+            # Hybrid score: heavily weighted towards token_set but penalized if ratio is extremely low
+            hybrid_score = (ts_score * 0.8) + (r_score * 0.2)
+
+            if hybrid_score > best_fuzzy_score:
+                best_fuzzy_score = hybrid_score
+                best_item = items[idx]
+
+        if best_item:
+            _LOGGER.debug("Fuzzy match query '%s': found '%s' with score %.3f",
+                         query, best_item.get("name", ""), best_fuzzy_score)
+            return best_item, best_fuzzy_score
 
     return None, 0.0
