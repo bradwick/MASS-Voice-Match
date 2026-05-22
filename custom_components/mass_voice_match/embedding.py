@@ -142,29 +142,40 @@ def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
     # Try Vector Search first
     if index and model:
         try:
+            _LOGGER.debug("Vector search query: '%s'", query)
             query_embedding = model.encode([query], normalize_embeddings=True)
             query_embedding = np.array(query_embedding).astype("float32")
 
             scores, indices = index.search(query_embedding, 10)
 
+            _LOGGER.debug("Vector search returned %d results", len(indices[0]))
+
             best_idx = -1
             best_score = -1.0
+            exact_match_item = None
 
-            # Check for exact matches in the results first
             for i in range(len(indices[0])):
                 idx = int(indices[0][i])
                 if idx < 0: continue
 
-                item_text = items[idx].get("text", "").lower().strip()
-                item_name = items[idx].get("name", "").lower().strip()
+                score = float(scores[0][i])
+                item = items[idx]
+                item_text = item.get("text", "").lower().strip()
+                item_name = item.get("name", "").lower().strip()
 
-                if query_lower == item_text or query_lower == item_name:
-                    _LOGGER.debug("Found exact match in vector results: %s", items[idx].get("text"))
-                    return items[idx], 1.0
+                _LOGGER.debug("Result %d: '%s' (score: %.3f)", i + 1, item.get("name"), score)
+
+                if exact_match_item is None:
+                    if query_lower == item_text or query_lower == item_name:
+                        exact_match_item = item
 
                 if i == 0:
                     best_idx = idx
-                    best_score = float(scores[0][i])
+                    best_score = score
+
+            if exact_match_item:
+                _LOGGER.debug("Found exact match in vector results: %s", exact_match_item.get("text"))
+                return exact_match_item, 1.0
 
             # Sanity check: verify vector match with a fuzzy score to avoid false positives
             if best_idx >= 0:
