@@ -9,10 +9,18 @@ from custom_components.mass_voice_match.const import DOMAIN, CONF_THRESHOLD, CON
 from homeassistant.components import conversation
 
 def test_detect_requested_media_type():
+    # prefixes
     assert _detect_requested_media_type("album thriller") == ("thriller", "album")
     assert _detect_requested_media_type("artist Michael Jackson") == ("michael jackson", "artist")
     assert _detect_requested_media_type("playlist Chill Vibes") == ("chill vibes", "playlist")
     assert _detect_requested_media_type("song Yesterday") == ("yesterday", "track")
+
+    # suffixes
+    assert _detect_requested_media_type("thriller album") == ("thriller", "album")
+    assert _detect_requested_media_type("Chill Vibes playlist") == ("chill vibes", "playlist")
+    assert _detect_requested_media_type("BBC Radio 1 radio station") == ("bbc radio 1", "radio")
+
+    # default
     assert _detect_requested_media_type("play Yesterday") == ("play yesterday", None)
 
 
@@ -30,6 +38,8 @@ async def test_search_top_n_fuzzy_fallback():
         {"text": "Yesterday by The Beatles", "name": "Yesterday", "artist": "The Beatles", "uri": "spotify:track:123", "type": "track"},
         {"text": "Hey Jude by The Beatles", "name": "Hey Jude", "artist": "The Beatles", "uri": "spotify:track:456", "type": "track"},
         {"text": "Thriller by Michael Jackson", "name": "Thriller", "artist": "Michael Jackson", "uri": "spotify:track:789", "type": "track"},
+        {"text": "Chill Vibes playlist", "name": "Chill Vibes", "uri": "spotify:playlist:abc", "type": "playlist"},
+        {"text": "BBC Radio 1 radio station", "name": "BBC Radio 1", "uri": "radio:bbc1", "type": "radio"},
     ]
     hass.data = {
         DOMAIN: {
@@ -49,6 +59,18 @@ async def test_search_top_n_fuzzy_fallback():
     results = search_top_n(hass, "the song Thriller", limit=2)
     assert len(results) > 0
     assert results[0][0]["name"] == "Thriller"
+
+    # Search playlist with suffix
+    results_playlist = search_top_n(hass, "Chill Vibes playlist", limit=1)
+    assert len(results_playlist) > 0
+    assert results_playlist[0][0]["name"] == "Chill Vibes"
+    assert results_playlist[0][0]["type"] == "playlist"
+
+    # Search radio station with suffix
+    results_radio = search_top_n(hass, "BBC Radio 1 radio station", limit=1)
+    assert len(results_radio) > 0
+    assert results_radio[0][0]["name"] == "BBC Radio 1"
+    assert results_radio[0][0]["type"] == "radio"
 
 
 @pytest.mark.asyncio

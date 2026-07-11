@@ -136,6 +136,7 @@ def build_items(lib: dict) -> list:
         if not uri:
             continue
         items.append({"text": f"playlist {name}", "name": name, "uri": uri, "type": "playlist"})
+        items.append({"text": f"{name} playlist", "name": name, "uri": uri, "type": "playlist"})
         items.append({"text": name, "name": name, "uri": uri, "type": "playlist"})
 
     # Radio
@@ -146,6 +147,10 @@ def build_items(lib: dict) -> list:
             continue
         items.append({"text": f"radio {name}", "name": name, "uri": uri, "type": "radio"})
         items.append({"text": f"station {name}", "name": name, "uri": uri, "type": "radio"})
+        items.append({"text": f"radio station {name}", "name": name, "uri": uri, "type": "radio"})
+        items.append({"text": f"{name} radio", "name": name, "uri": uri, "type": "radio"})
+        items.append({"text": f"{name} station", "name": name, "uri": uri, "type": "radio"})
+        items.append({"text": f"{name} radio station", "name": name, "uri": uri, "type": "radio"})
         items.append({"text": name, "name": name, "uri": uri, "type": "radio"})
 
     _LOGGER.info("Built %d searchable items from library", len(items))
