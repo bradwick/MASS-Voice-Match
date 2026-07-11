@@ -7,7 +7,8 @@ import logging
 
 from .const import (
     DOMAIN, CONF_MODEL, CONF_MUSIC_ASSISTANT_ENTRY, CONF_DEFAULT_MEDIA_PLAYER,
-    CONF_THRESHOLD, CONF_FALLBACK_AGENT, DEFAULT_MODEL, DEFAULT_THRESHOLD
+    CONF_THRESHOLD, CONF_FALLBACK_AGENT, CONF_SUGGESTION_COUNT,
+    DEFAULT_MODEL, DEFAULT_THRESHOLD, DEFAULT_SUGGESTION_COUNT
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -53,6 +54,9 @@ class MASSVoiceMatchFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Required(CONF_MODEL, default=DEFAULT_MODEL): str,
             vol.Required(CONF_THRESHOLD, default=DEFAULT_THRESHOLD): selector.NumberSelector(
                 selector.NumberSelectorConfig(min=0.0, max=1.0, step=0.01)
+            ),
+            vol.Required(CONF_SUGGESTION_COUNT, default=DEFAULT_SUGGESTION_COUNT): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=1, max=10, step=1, mode=selector.NumberSelectorMode.BOX)
             ),
         })
 
@@ -101,6 +105,13 @@ class OptionsFlowMASSVoiceMatch(config_entries.OptionsFlow):
                 default=self.config_entry.options.get(CONF_MODEL,
                     self.config_entry.data.get(CONF_MODEL, DEFAULT_MODEL))
             ): str,
+            vol.Required(
+                CONF_SUGGESTION_COUNT,
+                default=self.config_entry.options.get(CONF_SUGGESTION_COUNT,
+                    self.config_entry.data.get(CONF_SUGGESTION_COUNT, DEFAULT_SUGGESTION_COUNT))
+            ): selector.NumberSelector(
+                selector.NumberSelectorConfig(min=1, max=10, step=1, mode=selector.NumberSelectorMode.BOX)
+            ),
         })
 
         return self.async_show_form(
