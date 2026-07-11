@@ -120,6 +120,7 @@ def _detect_requested_media_type(query: str) -> tuple:
     """Detect if there is an explicit media type requested, and return (cleaned_query, media_type)."""
     query_lower = query.lower().strip()
 
+    # Prefix patterns
     prefixes = {
         "album": [r"^(?:the\s+)?album\s+(.+)$"],
         "artist": [r"^(?:the\s+)?artist\s+(.+)$", r"^(?:the\s+)?band\s+(.+)$", r"^(?:the\s+)?singer\s+(.+)$"],
@@ -130,6 +131,21 @@ def _detect_requested_media_type(query: str) -> tuple:
 
     import re
     for media_type, pat_list in prefixes.items():
+        for pattern in pat_list:
+            match = re.match(pattern, query_lower, re.IGNORECASE)
+            if match:
+                return match.group(1).strip(), media_type
+
+    # Suffix patterns (more specific patterns first)
+    suffixes = {
+        "album": [r"^(.+?)\s+album$"],
+        "artist": [r"^(.+?)\s+artist$", r"^(.+?)\s+band$", r"^(.+?)\s+singer$"],
+        "playlist": [r"^(.+?)\s+playlist$"],
+        "track": [r"^(.+?)\s+track$", r"^(.+?)\s+song$"],
+        "radio": [r"^(.+?)\s+radio\s+station$", r"^(.+?)\s+radio$", r"^(.+?)\s+station$"]
+    }
+
+    for media_type, pat_list in suffixes.items():
         for pattern in pat_list:
             match = re.match(pattern, query_lower, re.IGNORECASE)
             if match:
