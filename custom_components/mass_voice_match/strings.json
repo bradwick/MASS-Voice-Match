@@ -9,7 +9,8 @@
           "default_media_player": "Default Media Player",
           "fallback_agent": "Fallback Conversation Agent",
           "model": "Embedding Model",
-          "threshold": "Matching Threshold"
+          "threshold": "Matching Threshold",
+          "suggestion_count": "Number of alternative songs to suggest"
         }
       }
     },
@@ -29,7 +30,8 @@
           "default_media_player": "Default Media Player",
           "fallback_agent": "Fallback Conversation Agent",
           "model": "Embedding Model",
-          "threshold": "Matching Threshold"
+          "threshold": "Matching Threshold",
+          "suggestion_count": "Number of alternative songs to suggest"
         }
       }
     }

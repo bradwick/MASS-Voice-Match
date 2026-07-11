@@ -116,9 +116,33 @@ def load_index(hass, items: list, load_path: str):
         return False
 
 
-def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
+def _detect_requested_media_type(query: str) -> tuple:
+    """Detect if there is an explicit media type requested, and return (cleaned_query, media_type)."""
+    query_lower = query.lower().strip()
+
+    prefixes = {
+        "album": [r"^(?:the\s+)?album\s+(.+)$"],
+        "artist": [r"^(?:the\s+)?artist\s+(.+)$", r"^(?:the\s+)?band\s+(.+)$", r"^(?:the\s+)?singer\s+(.+)$"],
+        "playlist": [r"^(?:the\s+)?playlist\s+(.+)$"],
+        "track": [r"^(?:the\s+)?track\s+(.+)$", r"^(?:the\s+)?song\s+(.+)$"],
+        "radio": [r"^(?:the\s+)?radio\s+(.+)$", r"^(?:the\s+)?station\s+(.+)$", r"^(?:the\s+)?radio\s+station\s+(.+)$"]
+    }
+
+    import re
+    for media_type, pat_list in prefixes.items():
+        for pattern in pat_list:
+            match = re.match(pattern, query_lower, re.IGNORECASE)
+            if match:
+                return match.group(1).strip(), media_type
+
+    return query_lower, None
+
+
+def search_top_n(hass, query: str, limit: int = 5, model_name: str = DEFAULT_MODEL) -> list:
     """
-    Search for the best match using Vector Search (if available) or Fuzzy Matching.
+    Search for top N matching items using Vector Search (with fuzzy fallback).
+    Supports media type prioritization and returns deduplicated results sorted by score.
+    Each element in the returned list is a tuple: (item, score).
     """
     items = hass.data[DOMAIN].get("items")
     index = hass.data[DOMAIN].get("index")
@@ -131,108 +155,114 @@ def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
         raise ValueError("Query cannot be empty")
 
     query_lower = query.lower().strip()
+    search_query, requested_type = _detect_requested_media_type(query)
 
-    # Early exact match check
+    # Track deduplicated results: uri -> (item, score)
+    results_map = {}
+
+    # Helper to add/update result with the highest score
+    def add_result(item, score):
+        uri = item.get("uri")
+        if not uri:
+            return
+        if uri not in results_map or score > results_map[uri][1]:
+            results_map[uri] = (item, score)
+
+    # 1. Early exact matches
     for item in items:
-        if query_lower == item.get("text", "").lower().strip() or \
-           query_lower == item.get("name", "").lower().strip():
-            _LOGGER.debug("Found early exact match: %s", item.get("text"))
-            return item, 1.0
+        item_text_lower = item.get("text", "").lower().strip()
+        item_name_lower = item.get("name", "").lower().strip()
 
-    # Try Vector Search first
+        if search_query == item_text_lower or search_query == item_name_lower or \
+           query_lower == item_text_lower or query_lower == item_name_lower:
+            score = 1.0
+            if requested_type and item.get("type") == requested_type:
+                score = 1.05  # Priority boost
+            add_result(item, score)
+
+    # 2. Try Vector Search
+    vector_success = False
     if index and model:
         try:
-            _LOGGER.debug("Vector search query: '%s'", query)
-            query_embedding = model.encode([query], normalize_embeddings=True)
+            _LOGGER.debug("Vector search query: '%s' (cleaned: '%s', type: %s)", query, search_query, requested_type)
+            query_embedding = model.encode([search_query], normalize_embeddings=True)
             query_embedding = np.array(query_embedding).astype("float32")
 
-            scores, indices = index.search(query_embedding, 10)
-
-            _LOGGER.debug("Vector search returned %d results", len(indices[0]))
-
-            best_idx = -1
-            best_score = -1.0
-            exact_match_item = None
+            # Search a larger pool to allow deduplication
+            search_limit = min(50, len(items))
+            scores, indices = index.search(query_embedding, search_limit)
 
             for i in range(len(indices[0])):
                 idx = int(indices[0][i])
-                if idx < 0: continue
+                if idx < 0:
+                    continue
 
                 score = float(scores[0][i])
                 item = items[idx]
+
+                # Boost requested media type
+                if requested_type and item.get("type") == requested_type:
+                    score += 0.15
+
+                # Fuzzy sanity check
                 item_text = item.get("text", "").lower().strip()
-                item_name = item.get("name", "").lower().strip()
+                fuzzy_score = fuzz.token_set_ratio(search_query, item_text) / 100.0
 
-                _LOGGER.debug("Result %d: '%s' (score: %.3f)", i + 1, item.get("name"), score)
-
-                if exact_match_item is None:
-                    if query_lower == item_text or query_lower == item_name:
-                        exact_match_item = item
-
-                if i == 0:
-                    best_idx = idx
-                    best_score = score
-
-            if exact_match_item:
-                _LOGGER.debug("Found exact match in vector results: %s", exact_match_item.get("text"))
-                return exact_match_item, 1.0
-
-            # Sanity check: verify vector match with a fuzzy score to avoid false positives
-            if best_idx >= 0:
-                best_item = items[best_idx]
-                fuzzy_score = fuzz.token_set_ratio(
-                    query_lower,
-                    best_item.get("text", "").lower().strip()
-                ) / 100.0
-
-                # If fuzzy score is low, it's likely a false positive from the vector model
-                # token_set_ratio is more lenient, so we use a higher threshold (0.6)
-                if fuzzy_score < 0.6:
-                    _LOGGER.debug("Vector match '%s' failed fuzzy sanity check (score %.3f)",
-                                 best_item.get("text"), fuzzy_score)
-                    # We continue to fuzzy fallback instead of returning this
+                if fuzzy_score >= 0.6:
+                    add_result(item, score)
+                    vector_success = True
                 else:
-                    _LOGGER.debug("Vector match query '%s': found '%s' with score %.3f (fuzzy sanity: %.3f)",
-                                 query, best_item.get("name", ""), best_score, fuzzy_score)
-                    return best_item, best_score
+                    _LOGGER.debug("Vector match '%s' failed fuzzy sanity check (score %.3f, fuzzy %.3f)",
+                                 item.get("name"), score, fuzzy_score)
 
         except Exception as err:
-            _LOGGER.warning("Vector search failed: %s. Falling back to fuzzy.", err)
+            _LOGGER.warning("Vector search failed in search_top_n: %s. Falling back to fuzzy.", err)
 
-    # Fallback to Fuzzy Matching
-    _LOGGER.debug("Using fuzzy matching for query: %s", query)
+    # 3. Fallback to Fuzzy Matching
+    if not vector_success:
+        _LOGGER.debug("Using fuzzy matching for query: '%s' (cleaned: '%s', type: %s)", query, search_query, requested_type)
+        texts = [item.get("text", "") for item in items]
 
-    texts = [item.get("text", "") for item in items]
-    # Using a hybrid approach for fuzzy fallback:
-    # token_set_ratio is good for partial matches, but can give high scores to short common words.
-    # We combine it with ratio to ensure some overall similarity.
-    best_item = None
-    best_fuzzy_score = -1.0
+        # Extract top fuzzy candidates
+        fuzzy_limit = min(100, len(items))
+        fuzzy_results = process.extract(
+            search_query,
+            texts,
+            scorer=fuzz.token_set_ratio,
+            limit=fuzzy_limit,
+            processor=lambda x: x.lower().strip()
+        )
 
-    # We use a smaller limit for manual scoring
-    results = process.extract(
-        query,
-        texts,
-        scorer=fuzz.token_set_ratio,
-        limit=20,
-        processor=lambda x: x.lower().strip()
-    )
+        if fuzzy_results:
+            for matched_text, ts_score, idx in fuzzy_results:
+                ts_score /= 100.0
+                item = items[idx]
 
+                r_score = fuzz.ratio(search_query, matched_text.lower().strip()) / 100.0
+                hybrid_score = (ts_score * 0.8) + (r_score * 0.2)
+
+                # Boost requested media type
+                if requested_type and item.get("type") == requested_type:
+                    hybrid_score += 0.15
+
+                add_result(item, hybrid_score)
+
+    # Sort results by score in descending order
+    sorted_results = sorted(results_map.values(), key=lambda x: x[1], reverse=True)
+
+    # Cap score at 1.0 for final presentation, keeping order
+    final_results = []
+    for item, score in sorted_results[:limit]:
+        final_results.append((item, min(1.0, score)))
+
+    return final_results
+
+
+def search(hass, query: str, model_name: str = DEFAULT_MODEL) -> tuple:
+    """
+    Search for the best match using Vector Search (if available) or Fuzzy Matching.
+    """
+    results = search_top_n(hass, query, limit=1, model_name=model_name)
     if results:
-        for matched_text, ts_score, idx in results:
-            ts_score /= 100.0
-            r_score = fuzz.ratio(query_lower, matched_text.lower().strip()) / 100.0
-
-            # Hybrid score: heavily weighted towards token_set but penalized if ratio is extremely low
-            hybrid_score = (ts_score * 0.8) + (r_score * 0.2)
-
-            if hybrid_score > best_fuzzy_score:
-                best_fuzzy_score = hybrid_score
-                best_item = items[idx]
-
-        if best_item:
-            _LOGGER.debug("Fuzzy match query '%s': found '%s' with score %.3f",
-                         query, best_item.get("name", ""), best_fuzzy_score)
-            return best_item, best_fuzzy_score
-
+        return results[0]
     return None, 0.0
